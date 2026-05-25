@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 5s      # Scrape targets every 5 seconds for rapid hackathon feedback
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: "citadel_light_guard"
+    static_configs:
+      - targets: ["app:8000"]
