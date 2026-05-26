@@ -6,3 +6,6 @@ utils/__pycache__/
 .idea/
 .vscode/
 .gemini/
+checkpoints/
+mlruns/
+models/

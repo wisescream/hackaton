@@ -25,6 +25,19 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
     restart: always
 
+  api:
+    build: .
+    container_name: citadel_api
+    command: uvicorn api:app --host 0.0.0.0 --port 8080
+    ports:
+      - "8080:8080"  # Expose the local REST API to local network
+    volumes:
+      - .:/app
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    restart: always
+
   prometheus:
     image: prom/prometheus:latest
     container_name: citadel_prometheus
@@ -34,4 +47,5 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
       - app
+      - api
     restart: always

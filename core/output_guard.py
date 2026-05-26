@@ -1,6 +1,8 @@
 import re
 import config
-from core import main_llm
+import time
+from core import main_llm, secret_store
+from utils import metrics
 
 def check_system_prompt_leakage(raw_response: str) -> tuple:
     """
@@ -20,7 +22,6 @@ def check_system_prompt_leakage(raw_response: str) -> tuple:
     
     for term, reason in heuristics:
         if term in response_lower:
-            # We flag instruction leak if the output echoes back system boundaries
             return True, reason
             
     return False, "Safe"
@@ -28,7 +29,7 @@ def check_system_prompt_leakage(raw_response: str) -> tuple:
 def validate_and_sanitize_output(user_query: str, raw_response: str) -> dict:
     """
     Performs critical output verification (DLP) before delivering the message.
-    Redacts any critical admin key or API tokens, and checks for system prompt leakages.
+    Combines high-speed Regex/String matching with Semantic Embedding Cosine Similarity.
     """
     if not raw_response or not raw_response.strip():
         return {
@@ -38,7 +39,8 @@ def validate_and_sanitize_output(user_query: str, raw_response: str) -> dict:
             "instruction_leak": False,
             "remediation_steps": [],
             "reason": "Clean Response",
-            "details": "Empty response."
+            "details": "Empty response.",
+            "ml_dlp": {"triggered": False, "secret_name": "", "similarity": 0.0}
         }
 
     sanitized_response = raw_response
@@ -76,13 +78,42 @@ def validate_and_sanitize_output(user_query: str, raw_response: str) -> dict:
         remediation_steps.append("Suppressed Postgres database credential URL exfiltration")
         sanitized_response = sanitized_response.replace(config.DB_CREDENTIALS, "[REDACTED_SECRET]")
 
-    # 2. Check for system instruction leakage
+    # 2. Semantic Embedding DLP scanning (all-MiniLM-L6-v2 Cosine Similarity > 0.80)
+    ml_dlp_triggered = False
+    ml_dlp_secret = ""
+    ml_dlp_similarity = 0.0
+    
+    if secret_store.STORE_INITIALIZED:
+        start_time = time.perf_counter()
+        ml_dlp_res = secret_store.compare(sanitized_response)
+        inference_time = time.perf_counter() - start_time
+        metrics.LATENCY_SECONDS.labels("ml_dlp_guard").observe(inference_time)
+        
+        ml_dlp_triggered = ml_dlp_res["triggered"]
+        ml_dlp_secret = ml_dlp_res["secret_name"]
+        ml_dlp_similarity = ml_dlp_res["similarity"]
+        
+        # Record similarity score in Prometheus
+        if ml_dlp_similarity > 0.0:
+            metrics.ML_DLP_SIMILARITY.observe(ml_dlp_similarity)
+        
+        if ml_dlp_triggered:
+            leak_detected = True
+            if ml_dlp_secret not in matched_patterns:
+                matched_patterns.append(ml_dlp_secret)
+            remediation_steps.append(f"Auto-redacted semantic match (similarity: {ml_dlp_similarity}): {ml_dlp_secret}")
+            # Redact only matching secret fragments in sanitized_response
+            sanitized_response = secret_store.redact(sanitized_response)
+            
+            # Record redaction counter in Prometheus
+            metrics.ML_DLP_REDACTIONS.labels(ml_dlp_secret).inc()
+
+    # 3. Check for system instruction leakage
     instruction_leak, leak_reason = check_system_prompt_leakage(sanitized_response)
     
     if instruction_leak:
         leak_detected = True
         remediation_steps.append(f"Enforced prompt confidentiality: {leak_reason}")
-        # Clean/sanitize or return a polite security blocker message if it's a major system leak
         sanitized_response = (
             "⚠️ SECURITY BLOCK: The system blocked a potential information leakage attempt. "
             f"Reason: {leak_reason}."
@@ -98,6 +129,17 @@ def validate_and_sanitize_output(user_query: str, raw_response: str) -> dict:
             reason = "⚠️ DLP BLOCK: System prompt/identity exfiltration blocked"
             details += f" | {leak_reason}"
 
+    # Increment DLP scan metrics in Prometheus
+    if leak_detected:
+        rule_type = "regex"
+        if instruction_leak:
+            rule_type = "instruction"
+        elif ml_dlp_triggered:
+            rule_type = "semantic"
+        metrics.DLP_SCANS.labels(leak_detected="true", rule_type=rule_type).inc()
+    else:
+        metrics.DLP_SCANS.labels(leak_detected="false", rule_type="none").inc()
+
     return {
         "sanitized_response": sanitized_response,
         "leak_detected": leak_detected,
@@ -105,5 +147,10 @@ def validate_and_sanitize_output(user_query: str, raw_response: str) -> dict:
         "instruction_leak": instruction_leak,
         "remediation_steps": remediation_steps,
         "reason": reason,
-        "details": details
+        "details": details,
+        "ml_dlp": {
+            "triggered": ml_dlp_triggered,
+            "secret_name": ml_dlp_secret,
+            "similarity": ml_dlp_similarity
+        }
     }

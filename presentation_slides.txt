@@ -1,0 +1,298 @@
+================================================================================
+          PRESENTATION PROJET CITADEL-Y - SUPPORT POUR JURY (POWERPOINT)
+================================================================================
+Ce document contient la structure complète, les visuels suggérés et les scripts
+de parole (en français) pour chaque diapositive afin de présenter le projet
+CITADEL-Y LIGHT GUARD devant le jury du Hackathon.
+
+Mantra du Projet : "Une sécurité robuste ne doit pas être une défense parfaite qui
+bloque tout et rend l'IA inutile. Elle doit être adaptative, intelligente et
+permettre l'utilité métier en toute sécurité."
+
+--------------------------------------------------------------------------------
+SOMMAIRE DES DIAPOSITIVES :
+Diapo 1 : Introduction & Titre (L'identité de Citadel-Y)
+Diapo 2 : La Problématique : Le piège de la "Défense Parfaite" (Utilité vs Sécurité)
+Diapo 3 : L'Architecture Globale en 5 Niveaux (Une défense en profondeur)
+Diapo 4 : Entrée Sécurisée : Input Guard & LLM Judge (Classification Hybride ML/Regex)
+Diapo 5 : RAG Adaptatif Sécurisé & Isolation Inter-Session (Protéger le contexte)
+Diapo 6 : Sortie Sécurisée : Output Guard & DLP Sémantique (Zéro Fuite de Secrets)
+Diapo 7 : Observabilité & Supervision SOC : La Télémétrie Prometheus
+Diapo 8 : Validation & Démonstration : Sandbox vs Pentest (CTF)
+Diapo 9 : Conclusion & Vision (L'IA de demain, sécurisée et utile)
+--------------------------------------------------------------------------------
+
+================================================================================
+DIAPOSITIVE 1 : TITRE & INTRODUCTION
+================================================================================
+[VISUEL PROPOSÉ] :
+- Un fond sombre et épuré (bleu nuit profond / gris ardoise).
+- Un logo central représentant un bouclier technologique stylisé enveloppant la lettre Y.
+- Des accents lumineux vert émeraude (symbolisant la sécurité et la fluidité).
+- Typographie moderne et imposante (ex: Outfit ou Inter).
+
+[TEXTE À AFFICHER SUR LA DIAPO] :
+* CITADEL-Y LIGHT GUARD
+* Concilier Sécurité & Utilité : Une passerelle RAG d'entreprise hautement sécurisée.
+* Présenté par : [Vos Noms / Équipe]
+* Hackathon "Prompt Injection War" 2026
+
+[SCRIPT DU PRÉSENTATEUR (SPEECH)] :
+"Bonjour Mesdames et Messieurs les membres du jury. Aujourd'hui, nous sommes
+ravis de vous présenter CITADEL-Y LIGHT GUARD.
+Dans un monde où les grands modèles de langage sont intégrés partout dans nos
+processus d'entreprise, la question n'est plus de savoir s'ils vont subir des
+attaques par injection de prompt ou des fuites de données, mais COMMENT nous allons
+les protéger.
+Notre objectif avec Citadel-Y a été de concevoir une passerelle de sécurité
+multicouche robuste pour les systèmes de génération augmentée par récupération
+(RAG), avec un principe fondamental qui a guidé tout notre développement : la
+sécurité doit être un accélérateur, pas un frein."
+
+================================================================================
+DIAPOSITIVE 2 : LA PROBLÉMATIQUE : LE PIÈGE DE LA "DÉFENSE PARFAITE"
+================================================================================
+[VISUEL PROPOSÉ] :
+- Un graphique représentant une balance ou un curseur déséquilibré.
+- À gauche : "Défense 100% Parfaite (Bloquer tout)" -> Résultat : "IA = Inutile (0% Utilité)".
+- À droite : "Pas de Défense (Laisser tout passer)" -> Résultat : "Risque Maximal (Fuite, Hijacking)".
+- Au centre : "Citadel-Y : L'Équilibre Dynamique (Sécurité Adaptative)".
+
+[TEXTE À AFFICHER SUR LA DIAPO] :
+* Le Dilemme Sécurité vs Utilité :
+  - Il est facile de concevoir une défense parfaite : il suffit de rejeter 100% des requêtes suspectes ou de renvoyer des réponses vides. Mais l'IA devient INUTILE pour les utilisateurs légitimes.
+* Les Attaques Réelles à contrer :
+  - Injections directes (Jailbreaks) : contourner les directives système.
+  - Exfiltration de secrets : voler des clés d'API ou des mots de passe dans la base RAG.
+  - Injections indirectes : contaminer l'historique de chat ou les fichiers RAG.
+* Notre Solution : La Défense Adaptative et Proportionnelle.
+  - Protéger les données sensibles sans jamais perturber l'expérience utilisateur légitime.
+
+[SCRIPT DU PRÉSENTATEUR (SPEECH)] :
+"Pour commencer, abordons un constat paradoxal en sécurité des IA : le piège
+de la défense parfaite. Si nous configurons un pare-feu ultra-agressif sur
+l'IA, elle va bloquer le moindre mot suspect. Résultat ? Vos employés ne
+pourront plus l'utiliser pour travailler, et ils se tourneront vers des outils
+grand public non sécurisés (Shadow AI). C'est le meilleur moyen de rendre l'IA
+inutile.
+L'enjeu n'est donc pas de créer un mur infranchissable et stérile, mais de
+construire une défense proportionnelle. Citadel-Y s'adapte en temps réel au
+niveau de menace : si une requête est suspecte, nous restreignons temporairement
+son accès aux documents sensibles (RAG) au lieu de bloquer l'utilisateur. Si un
+secret est généré par erreur, nous le censurons précisément plutôt que de couper la
+conversation. C'est ce que nous appelons la sécurité par dégradation adaptative."
+
+================================================================================
+DIAPOSITIVE 3 : L'ARCHITECTURE GLOBALE EN 5 NIVEAUX
+================================================================================
+[VISUEL PROPOSÉ] :
+- Un schéma de pipeline vertical ou horizontal montrant les 5 couches successives.
+- Chaque couche a un voyant de couleur (vert, jaune, rouge) illustrant le flux d'une requête.
+- Des flèches fluides montrent le traitement de la requête de l'utilisateur jusqu'à la réponse propre.
+
+[TEXTE À AFFICHER SUR LA DIAPO] :
+* Le Pipeline de Sécurité CITADEL-Y en 5 Couches :
+  1. Input Guard : Analyse du risque de la requête (Machine Learning local SetFit + Regex de secours).
+  2. LLM Judge : Arbitrage intelligent en cas de doute ou de risque élevé pour éviter les faux positifs.
+  3. Secure RAG : Recherche vectorielle avec isolation des sessions et filtrage adaptatif selon le risque.
+  4. Main LLM : Modèle principal (Inference sur modèle standard ou de secours).
+  5. Output Guard (DLP) : Prévention des fuites sémantiques de données et secrets avant livraison.
+
+[SCRIPT DU PRÉSENTATEUR (SPEECH)] :
+"Pour mettre en œuvre cette philosophie, nous avons développé une architecture
+en profondeur articulée autour de 5 couches de défense étanches.
+Lorsqu'un utilisateur envoie un message, il traverse d'abord notre 'Input Guard'
+qui calcule un score de risque. Si ce score est très élevé, le 'LLM Judge' analyse
+l'intention sémantique profonde pour confirmer l'attaque. Si la requête est
+acceptée, elle passe au 'Secure RAG' qui filtre les documents accessibles selon
+l'identité de l'utilisateur ET son score de risque actuel. Le 'Main LLM' génère la
+réponse, qui est enfin passée au crible par l' 'Output Guard' pour masquer toute
+donnée sensible (DLP) avant de l'afficher.
+Voyons en détail comment fonctionnent ces innovations."
+
+================================================================================
+DIAPOSITIVE 4 : ENTRÉE SÉCURISÉE : INPUT GUARD & LLM JUDGE
+================================================================================
+[VISUEL PROPOSÉ] :
+- Un graphique montrant la répartition des scores de risque (0.0 à 1.0) :
+  - [0.0 - 0.35] : Zone Verte (ALLOW) -> Traitement normal.
+  - [0.35 - 0.70] : Zone Jaune (FLAG_MEDIUM) -> Dégradation du RAG.
+  - [0.70 - 1.0] : Zone Rouge (FLAG_HIGH) -> Appel au LLM Judge pour blocage final.
+- Une boîte montrant le fonctionnement en "Zone de Doute / Dead Zone" (0.40 - 0.60).
+
+[TEXTE À AFFICHER SUR LA DIAPO] :
+* Classification Hybride ML et Règles :
+  - Classifieur SetFit local (distillé à partir de sentence-transformers), ultra-léger et rapide sur CPU.
+  - Zéro dépendance réseau pour la première barrière de défense.
+* Gestion de la "Zone de Doute" (Dead Zone [0.40 - 0.60]) :
+  - Si le modèle ML hésite, bascule automatique vers un moteur de scoring Regex ultra-rapide.
+* Arbitrage par LLM Judge :
+  - Les requêtes FLAG_HIGH (risque >= 0.70) subissent une analyse d'intention sémantique par un LLM Judge pour éliminer les faux positifs et ne bloquer que les attaques réelles (Jailbreaks, overrides).
+
+[SCRIPT DU PRÉSENTATEUR (SPEECH)] :
+"La première couche, Input Guard, est un modèle de Machine Learning SetFit que
+nous avons pré-entraîné localement. Il tourne sur CPU avec une latence minimale et
+sans aucun appel réseau, garantissant la confidentialité des données dès l'entrée.
+Sa particularité réside dans notre gestion de la 'Zone de Doute'. Si le modèle ML
+estime le risque entre 0.40 et 0.60, il ne prend pas de décision hâtive : il passe la main
+à un moteur Regex de secours.
+De plus, si le score dépasse 0.70 (FLAG_HIGH), nous faisons appel à un LLM Judge.
+Pourquoi ? Parce qu'un humain peut utiliser des tournures de phrases complexes
+qui ressemblent à du jailbreak sans en être. Le LLM Judge comprend le contexte et
+évite ainsi de rejeter des utilisateurs légitimes, réglant le problème de la défense
+trop rigide."
+
+================================================================================
+DIAPOSITIVE 5 : RAG ADAPTATIF SÉCURISÉ & ISOLATION INTER-SESSION
+================================================================================
+[VISUEL PROPOSÉ] :
+- Un tableau comparatif montrant l'accès aux documents selon le niveau de risque :
+  - Risque Faible (<0.35) -> Accès Public, Interne, et Restreint (si Admin).
+  - Risque Moyen (>=0.35) -> Accès Public UNIQUEMENT. Documents Internes et Restreints masqués.
+  - Risque Élevé (>=0.70) -> Blackout RAG (0 document renvoyé).
+- Une icône de bouclier sur un historique de chat (Memory Guard Shield).
+
+[TEXTE À AFFICHER SUR LA DIAPO] :
+* RAG Sécurisé Adaptatif (Dynamic Degradation) :
+  - En cas de requête suspecte (FLAG_MEDIUM), le système dégrade l'accès RAG au lieu de bloquer l'utilisateur. Les documents internes et restreints sont automatiquement filtrés.
+* Isolation Stricte des Données (Multi-Tenant) :
+  - Base SQLite vectorielle cloisonnant rigoureusement les espaces de documents : SYSTEM vs Utilisateur spécifique (ex: team_alpha vs team_beta).
+* Memory Guard Shield :
+  - Nettoie l'historique des conversations avant envoi au LLM. Si une injection indirecte s'est glissée dans le chat précédent, elle est censurée pour empêcher le piratage de la mémoire à long terme.
+
+[SCRIPT DU PRÉSENTATEUR (SPEECH)] :
+"Notre troisième couche est le RAG Sécurisé. C'est ici que l'approche anti-défense
+parfaite prend tout son sens.
+Si un utilisateur pose une question légèrement ambiguë sur des données internes,
+le système ne va pas lui fermer la porte au nez. Notre politique RAG adaptative
+va simplement basculer en mode 'FLAG_MEDIUM' : le moteur RAG restreint les
+résultats de recherche aux seuls documents 'publics', masquant les documents
+'internes' et 'restreints'. L'IA reste utile pour les questions d'intérêt général
+tout en sécurisant les secrets.
+De plus, nous assurons une isolation stricte des sessions de chat (un utilisateur de
+l'équipe Alpha ne pourra jamais faire fuiter ou lire l'historique de l'équipe Beta)
+et nous déployons Memory Guard, un bouclier qui scanne et assainit l'historique des
+messages pour stopper les attaques par injection indirecte."
+
+================================================================================
+DIAPOSITIVE 6 : SORTIE SÉCURISÉE : OUTPUT GUARD & DLP SÉMANTIQUE
+================================================================================
+[VISUEL PROPOSÉ] :
+- Une infographie montrant un flux de texte sortant de l'assistant LLM.
+- Une loupe zoomant sur un mot-clé comme "PHOENIX-99-743X" ou une URL de DB.
+- Le mot-clé est remplacé en temps réel par "[REDACTED_SECRET]".
+- Formule mathématique illustrée : "Cosine Similarity > 0.80 -> Redact".
+
+[TEXTE À AFFICHER SUR LA DIAPO] :
+* Prévention des Fuites de Données (DLP) :
+  - Double verrouillage en sortie sur la réponse générée par l'IA.
+* DLP par Expressions Régulières :
+  - Détection ultra-rapide des formats connus (Clés API, clés système PHOENIX, chaînes de connexion de bases de données SQL).
+* DLP Sémantique par Plongements (Embeddings) :
+  - Utilisation du modèle local 'all-MiniLM-L6-v2' pour calculer la similarité cosinus entre les phrases de la réponse et une base de secrets enregistrés.
+  - Si la similarité dépasse 0.80 (ex: paraphrase d'un mot de passe ou d'une clé secrète), le texte est censuré instantanément.
+* Censure Ciblée :
+  - Seul le secret est masqué (ex: [REDACTED_SECRET]). Le reste du texte utile est délivré intact.
+
+[SCRIPT DU PRÉSENTATEUR (SPEECH)] :
+"Même avec les meilleures protections en entrée, un LLM peut être victime d'hallucinations
+ou réussir à contourner les filtres et générer une donnée confidentielle.
+C'est pourquoi nous avons mis en place notre cinquième couche : l'Output Guard.
+Elle agit comme une cellule de prévention des fuites de données (DLP).
+En plus des filtres regex classiques, nous avons implémenté un système de DLP sémantique.
+Le système compare sémantiquement les phrases produites par l'IA avec une base de
+secrets connus à l'aide d'embeddings locaux. Si une phrase ressemble à plus de 80% à un
+secret (paraphrase, synonymes), le secret est censuré de manière ciblée par la mention
+[REDACTED_SECRET]. La conversation continue normalement, l'IA reste utile, mais
+l'exfiltration de données est neutralisée."
+
+================================================================================
+DIAPOSITIVE 7 : OBSERVABILITÉ & SUPERVISION SOC : LA TÉLÉMÉTRIE PROMETHEUS
+================================================================================
+[VISUEL PROPOSÉ] :
+- Captures d'écran de graphiques Prometheus/Grafana avec des courbes de latence et des taux d'attaques.
+- Une liste des métriques clés collectées.
+- Une illustration d'un tableau d'audit de sécurité.
+
+[TEXTE À AFFICHER SUR LA DIAPO] :
+* Télémétrie Sécurité Temps Réel (SOC-Ready) :
+  - Exposition native d'un flux de métriques Prometheus sur le port `8000`.
+* Métriques Clés Surveillées :
+  - Latence détaillée par couche (pipeline, SetFit, DLP, LLM Judge).
+  - Taux de requêtes autorisées (ALLOW), dégradées (MEDIUM) et bloquées (HIGH).
+  - Score de confiance du classifieur SetFit.
+  - Histogramme des scores de similarité DLP sémantique.
+* Registre d'Audit Complet :
+  - Chaque décision, score de risque et action de filtrage RAG est consigné dans une base SQLite sécurisée pour l'analyse post-mortem.
+
+[SCRIPT DU PRÉSENTATEUR (SPEECH)] :
+"Un système de sécurité n'est rien sans visibilité. C'est pourquoi nous avons conçu
+Citadel-Y pour être totalement 'SOC-Ready', c'est-à-dire prêt à être intégré dans un
+centre de supervision de la sécurité d'une grande entreprise.
+Grâce à un serveur d'exportation Prometheus, nous mesurons en temps réel la latence
+matérielle de chaque couche de sécurité, en particulier le coût CPU de notre modèle
+ML local. Nous suivons l'évolution des scores de risque, le volume d'attaques bloquées
+et le taux d'application des politiques de RAG.
+Chaque requête fait également l'objet d'un log d'audit détaillé dans notre base de
+données, permettant aux analystes d'investiguer facilement en cas de comportement
+suspect."
+
+================================================================================
+DIAPOSITIVE 8 : VALIDATION & DÉMONSTRATION : SANDBOX VS PENTEST (CTF)
+================================================================================
+[VISUEL PROPOSÉ] :
+- Une double image ou maquette d'interface :
+  - À gauche : Portail Bleu (Chat Arena, graphiques Prometheus intégrés, Vector Browser).
+  - À droite : Portail Rouge (Console de hacking, Capture The Flag avec drapeaux).
+
+[TEXTE À AFFICHER SUR LA DIAPO] :
+* Un Double Environnement Interactif :
+* 🔵 Portail A : Console de l'Équipe Bleue (Défenseur)
+  - Arena de Chat : Tester l'IA sous différentes identités (Employee, Admin, Guest).
+  - Visualisation en direct des métriques de télémétrie de sécurité.
+  - Explorateur de documents RAG (Original vs Sanitaire).
+* 🔴 Portail B : Console de l'Équipe Rouge (Attaquant / Red Team)
+  - Capture The Flag (CTF) avec 3 objectifs d'exfiltration de secrets (Vault, Jailbreak, DB URL).
+  - Terminal de Hacking : Inspection en temps réel des couches internes face à un payload.
+  - Registre de Vulnérabilités partagé pour consigner les exploits réussis.
+
+[SCRIPT DU PRÉSENTATEUR (SPEECH)] :
+"Pour valider scientifiquement la robustesse de notre architecture, nous avons créé
+un double workspace de démonstration.
+D'un côté, le Portail Bleu (Blue Team) offre une interface utilisateur pour
+chatter avec l'assistant, surveiller les métriques de sécurité et inspecter le
+coffre-fort de documents RAG.
+De l'autre, le Portail Rouge (Red Team) simule l'environnement d'un attaquant.
+Il propose un jeu de Capture The Flag avec 3 défis d'exfiltration. Un terminal de
+hacking permet aux auditeurs de sécurité d'injecter des charges utiles brutes et de
+voir comment chaque couche (Input Guard, Judge, DLP sémantique) réagit et neutralise
+l'attaque en temps réel. Les attaquants peuvent même enregistrer leurs exploits dans
+un registre de vulnérabilités partagé."
+
+================================================================================
+DIAPOSITIVE 9 : CONCLUSION & VISION
+================================================================================
+[VISUEL PROPOSÉ] :
+- Une image inspirante combinant un bouclier digital, des connexions de neurones et un symbole de réussite (croissance/clé).
+- Rappel des 4 mots clés : Adaptabilité, Utilité, Observabilité, Production-Ready.
+
+[TEXTE À AFFICHER SUR LA DIAPO] :
+* CITADEL-Y LIGHT GUARD : La Sécurité sans Compromis
+* Bilan du Projet :
+  - ✅ Robuste : Tous les tests d'injection directe, indirecte et DLP validés avec succès.
+  - ✅ Utile : Zéro friction pour les utilisateurs légitimes, dégradation adaptative intelligente.
+  - ✅ Léger : Intégration de modèles ML et sémantiques locaux sans coût réseau.
+  - ✅ Ops-Ready : Conteneurisé sous Docker, entièrement instrumenté sous Prometheus.
+* L'avenir de la sécurité des LLM est dynamique, proportionnel et mesurable.
+
+[SCRIPT DU PRÉSENTATEUR (SPEECH)] :
+"Pour conclure, Citadel-Y démontre qu'il est tout à fait possible de sécuriser
+les modèles de langage en entreprise sans les castrer ni les rendre inutiles.
+Grâce à notre approche de défense adaptative en 5 couches, nous offrons une
+barrière de sécurité ultra-robuste contre les attaques les plus sophistiquées tout en
+maintenant une fluidité et une utilité maximales pour le business.
+Le projet est entièrement conteneurisé, validé par notre suite de tests
+automatisés, et prêt à être déployé en production.
+Nous vous remercions pour votre attention et nous sommes maintenant à votre
+entière disposition pour répondre à vos questions et vous faire une démonstration en direct !"
+================================================================================

@@ -48,6 +48,82 @@ CURRENT_RISK = Gauge(
     "Threat risk level computed for the latest processed query"
 )
 
+# 7. SetFit Raw Confidence Score
+ML_INPUT_GUARD_CONFIDENCE = Gauge(
+    "citadel_ml_input_guard_confidence",
+    "Confidence score computed by the SetFit model for the latest query"
+)
+
+# 8. SetFit Fallback Counter
+ML_INPUT_GUARD_FALLBACKS = Counter(
+    "citadel_ml_input_guard_fallbacks_total",
+    "Total number of times Input Guard fell back to the rule-based regex engine",
+    ["reason"]  # "dead_zone" or "model_absent"
+)
+
+# 9. Semantic DLP Guard Cosine Similarity Score
+ML_DLP_SIMILARITY = Histogram(
+    "citadel_ml_dlp_similarity_scores",
+    "Cosine similarity scores of candidate leaked blocks against secret embeddings",
+    buckets=[0.5, 0.6, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0]
+)
+
+# 10. Semantic DLP Redactions Counter
+ML_DLP_REDACTIONS = Counter(
+    "citadel_ml_dlp_redactions_total",
+    "Total number of semantic DLP redactions performed by Output Guard",
+    ["secret_category"]  # e.g., PHOENIX_SECRET, API_KEY, DATABASE_URL
+)
+
+# 11. Input Guard Decision Counter (ALLOW, FLAG_MEDIUM, FLAG_HIGH)
+INPUT_GUARD_DECISIONS = Counter(
+    "citadel_input_guard_decisions_total",
+    "Total decisions made by Input Guard",
+    ["decision"]
+)
+
+# 12. LLM Judge Verdicts (unsafe = true/false)
+JUDGE_VERDICTS = Counter(
+    "citadel_judge_verdicts_total",
+    "Total verdicts returned by LLM Judge",
+    ["unsafe"]
+)
+
+# 13. RAG Access Control Policy Applied
+RAG_POLICIES = Counter(
+    "citadel_rag_policy_applied_total",
+    "Total RAG security policies applied to context retrieval requests",
+    ["policy", "user_role"]
+)
+
+# 14. RAG Scoped Documents Retrieved
+RAG_DOCUMENTS = Counter(
+    "citadel_rag_documents_retrieved_total",
+    "Total scoped documents retrieved during RAG search",
+    ["document_title", "classification"]
+)
+
+# 15. Output Guard DLP Scans
+DLP_SCANS = Counter(
+    "citadel_dlp_scans_total",
+    "Total scans processed by Output Guard DLP",
+    ["leak_detected", "rule_type"]
+)
+
+# 16. Red Team Attack Activity
+REDTEAM_ATTACKS = Counter(
+    "citadel_redteam_attacks_total",
+    "Total prompt injection attacks launched against Citadel-Y by the Red Team",
+    ["attacker", "category", "status"]
+)
+
+# 17. Red Team Flag Submissions
+REDTEAM_FLAGS = Counter(
+    "citadel_redteam_flags_submitted_total",
+    "Total CTF flags submitted to the Red Team scoreboard",
+    ["attacker", "flag_name", "status"]
+)
+
 # --- THREAD-SAFE LAUNCH FUNCTION ---
 def start_metrics_server(port=METRICS_PORT):
     """

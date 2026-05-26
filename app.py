@@ -4,7 +4,7 @@ import pandas as pd
 import re
 import json
 import config
-from core import input_guard, judge, rag_pipeline, main_llm, output_guard
+from core import input_guard, judge, rag_pipeline, main_llm, output_guard, ml_classifier, secret_store
 from utils import metrics, seed_data
 
 # --- PAGE CONFIGURATION ---
@@ -110,6 +110,11 @@ st.markdown("""
 with st.sidebar:
     st.image("https://img.icons8.com/nolan/128/security-shield.png", width=70)
     st.markdown("## CITADEL-Y CONFIGURATION")
+    
+    if not ml_classifier.MODEL_LOADED:
+        st.sidebar.error(f"⚠️ Input Guard ML Offline: {ml_classifier.MODEL_WARNING}")
+    if not secret_store.STORE_INITIALIZED:
+        st.sidebar.error("⚠️ Output Guard Semantic DLP Offline")
     
     st.markdown("---")
     
@@ -282,7 +287,7 @@ with tab_chat:
             # -------------------------------------------------------------
             # STEP 2: LLM JUDGE (Classification of Intent)
             # -------------------------------------------------------------
-            if input_analysis["decision"] == "FLAG_HIGH":
+            if input_analysis["decision"] in ("FLAG_HIGH", "FLAG_MEDIUM"):
                 t_start = time.time()
                 metrics.LLM_CALLS.labels(role="judge", model=config.JUDGE_MODEL).inc()
                 
@@ -305,29 +310,33 @@ with tab_chat:
                     metrics.REQUESTS_TOTAL.labels(status="blocked").inc()
                     st.session_state.total_blocked += 1
             else:
-                telemetry["judge"] = {"skipped": True, "details": "Skipped (Risk score below threshold)"}
+                telemetry["judge"] = {"skipped": True, "details": "Skipped (Risk score below MEDIUM threshold — no suspicion)"}
 
             # -------------------------------------------------------------
             # STEP 3: RAG PIPELINE (Multi-User Scoped Retrieval)
             # -------------------------------------------------------------
-            # Scoped context retrieval - restricted to global system files or user owned uploads
-            t_start = time.time()
-            retrieved_docs, rag_policy, filtering_logs = rag_pipeline.retrieve_context(
-                current_prompt, 
-                input_analysis["risk_score"],
-                current_user
-            )
-            t_elapsed = time.time() - t_start
-            
-            metrics.LATENCY_SECONDS.labels(component="rag").observe(t_elapsed)
-            
-            telemetry["rag"] = {
-                "policy": rag_policy,
-                "documents_retrieved": [d["title"] for d in retrieved_docs],
-                "doc_details": retrieved_docs,
-                "filtering_logs": filtering_logs,
-                "latency": round(t_elapsed, 4)
-            }
+            if not is_blocked:
+                # Scoped context retrieval - restricted to global system files or user owned uploads
+                t_start = time.time()
+                retrieved_docs, rag_policy, filtering_logs = rag_pipeline.retrieve_context(
+                    current_prompt, 
+                    input_analysis["risk_score"],
+                    current_user
+                )
+                t_elapsed = time.time() - t_start
+                
+                metrics.LATENCY_SECONDS.labels(component="rag").observe(t_elapsed)
+                
+                telemetry["rag"] = {
+                    "policy": rag_policy,
+                    "documents_retrieved": [d["title"] for d in retrieved_docs],
+                    "doc_details": retrieved_docs,
+                    "filtering_logs": filtering_logs,
+                    "latency": round(t_elapsed, 4)
+                }
+            else:
+                rag_policy = "🔴 RAG SKIPPED: Query blocked by Judge before retrieval"
+                telemetry["rag"] = {"skipped": True, "details": "Skipped — query blocked by Judge before RAG retrieval"}
 
             # -------------------------------------------------------------
             # STEP 4: MEMORY GUARD (Sanitize chat history to avoid injection payload replays)
@@ -390,6 +399,7 @@ with tab_chat:
                     "remediation_steps": dlp_analysis["remediation_steps"],
                     "sanitized_response": dlp_analysis["sanitized_response"],
                     "reason": dlp_analysis["reason"],
+                    "ml_dlp": dlp_analysis.get("ml_dlp", {"triggered": False, "secret_name": "", "similarity": 0.0}),
                     "latency": round(t_elapsed, 4)
                 }
                 

@@ -1,0 +1,14 @@
+# Docker build ignore patterns
+.git
+.gitignore
+.env
+.gemini
+__pycache__
+core/__pycache__
+utils/__pycache__
+checkpoints/
+mlruns/
+models/
+*.db
+*.log
+presentation_slides.txt

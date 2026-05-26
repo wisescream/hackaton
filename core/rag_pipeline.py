@@ -3,6 +3,7 @@ import json
 import re
 import math
 import config
+from utils import metrics
 
 DB_PATH = "citadel_rag.db"
 
@@ -338,6 +339,22 @@ def delete_chat_session(user_id: str, chat_id: str):
 
 # --- SCOPED CONTEXT RETRIEVAL ---
 
+def get_user_role(username: str) -> str:
+    """
+    Determines user role based on username or session ID:
+    - contains 'admin': admin
+    - contains 'employee' or starts with 'team_': employee (e.g. employee_01, team_alpha, team_beta)
+    - any other value (e.g. anonymous, guest_user): anonymous/public
+    """
+    if not username:
+        return "public"
+    username_lower = username.lower()
+    if "admin" in username_lower:
+        return "admin"
+    if "employee" in username_lower or username_lower.startswith("team_"):
+        return "employee"
+    return "public"
+
 def retrieve_context(query: str, risk_score: float, current_user_id: str) -> tuple:
     """
     Retrieves relevant context documents from RAG, strictly scoped to standard SYSTEM docs
@@ -351,6 +368,31 @@ def retrieve_context(query: str, risk_score: float, current_user_id: str) -> tup
     init_db()
     filtering_logs = []
     
+    # 1. High-Risk Blackout Policy
+    if risk_score >= config.RISK_THRESHOLD_HIGH:
+        policy_note = "RAG_BLACKOUT"
+        
+        # Increment RAG security policy in Prometheus
+        user_role = get_user_role(current_user_id)
+        metrics.RAG_POLICIES.labels(policy=policy_note, user_role=user_role).inc()
+        
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT title, classification FROM documents WHERE user_id = 'SYSTEM' OR user_id = ?",
+            (current_user_id,)
+        )
+        doc_rows = cursor.fetchall()
+        conn.close()
+        for r in doc_rows:
+            filtering_logs.append({
+                "title": r[0],
+                "classification": r[1],
+                "status": "FILTERED",
+                "reason": f"RAG Blackout: Input risk {risk_score} >= high threshold ({config.RISK_THRESHOLD_HIGH})"
+            })
+        return [], policy_note, filtering_logs
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     # Filter documents scoped to SYSTEM or the current user_id
@@ -364,25 +406,32 @@ def retrieve_context(query: str, risk_score: float, current_user_id: str) -> tup
     if not rows:
         return [], "No documents in scoped database.", [{"title": "N/A", "classification": "N/A", "status": "EMPTY", "reason": "No documents found."}]
 
-    # High-Risk Blackout Policy
-    if risk_score >= config.RISK_THRESHOLD_HIGH:
-        policy_note = "🔴 RAG BLACKOUT: High-risk prompt prevents any document retrieval."
-        for r in rows:
-            filtering_logs.append({
-                "title": r[1],
-                "classification": r[3],
-                "status": "FILTERED",
-                "reason": f"RAG Blackout: Input risk {risk_score} >= high threshold ({config.RISK_THRESHOLD_HIGH})"
-            })
-        return [], policy_note, filtering_logs
-
-    # Determine allowed classifications
-    elif risk_score >= config.RISK_THRESHOLD_MEDIUM:
+    # Determine allowed classifications based on risk score and user roles
+    user_role = get_user_role(current_user_id)
+    
+    if risk_score >= config.RISK_THRESHOLD_MEDIUM:
+        # FLAG_MEDIUM → PUBLIC uniquement, ignorer le rôle
         allowed_classifications = ["public"]
         policy_note = f"🟡 ADAPTIVE SECURITY ACTIVE: Medium-risk query. Search restricted to public scoped database only."
     else:
-        allowed_classifications = ["public", "internal", "restricted"]
-        policy_note = f"🟢 STANDARD SECURITY ACTIVE: Low-risk query. Search includes scoped system & user documents."
+        # ALLOW → selon le rôle
+        if user_role == "admin":
+            allowed_classifications = ["public", "internal"]
+            # RESTRICTED jamais si risk > 0.00
+            if risk_score > 0.00:
+                policy_note = f"🟢 STANDARD SECURITY ACTIVE (Admin - Low Risk Guard): Restricted docs omitted."
+            else:
+                allowed_classifications.append("restricted")
+                policy_note = f"🟢 STANDARD SECURITY ACTIVE (Admin): Low-risk query. Full access allowed."
+        elif user_role == "employee":
+            allowed_classifications = ["public", "internal"]
+            policy_note = f"🟢 STANDARD SECURITY ACTIVE (Employee): Search includes public & internal scoped documents."
+        else:
+            allowed_classifications = ["public"]
+            policy_note = f"🟢 STANDARD SECURITY ACTIVE (Public): Search restricted to public documents."
+
+    # Record RAG policy in Prometheus
+    metrics.RAG_POLICIES.labels(policy=policy_note, user_role=user_role).inc()
 
     docs_to_rank = []
     for r in rows:
@@ -394,7 +443,7 @@ def retrieve_context(query: str, risk_score: float, current_user_id: str) -> tup
                 "title": title,
                 "classification": doc_class,
                 "status": "FILTERED",
-                "reason": f"Excluded: '{doc_class}' files blocked under Medium-Risk strategy (risk score {risk_score} >= {config.RISK_THRESHOLD_MEDIUM})"
+                "reason": f"Excluded: '{doc_class}' files blocked under RAG access control policy (role: {user_role}, risk: {risk_score})"
             })
             continue
 
@@ -416,6 +465,9 @@ def retrieve_context(query: str, risk_score: float, current_user_id: str) -> tup
     
     retrieved_contexts = []
     for doc, score in top_k:
+        # Increment RAG retrieved document in Prometheus
+        metrics.RAG_DOCUMENTS.labels(document_title=doc["title"], classification=doc["classification"]).inc()
+
         text_to_inject = doc["content"]
         status = "ALLOWED"
         reason = "Passed similarity match."

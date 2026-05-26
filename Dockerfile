@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-cache Hugging Face Embedding & SetFit Models for offline-ready fast container cold-start
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2'); from setfit import SetFitModel; SetFitModel.from_pretrained('sentence-transformers/paraphrase-MiniLM-L6-v2')"
+
 # Copy project files
 COPY . .
 

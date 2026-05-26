@@ -5,4 +5,4 @@ global:
 scrape_configs:
   - job_name: "citadel_light_guard"
     static_configs:
-      - targets: ["app:8000"]
+      - targets: ["app:8000", "api:8000", "redteam_portal:8000"]
