@@ -19,6 +19,14 @@ st.set_page_config(
 metrics.start_metrics_server(port=8000)
 
 # --- INITIALIZE SYSTEM GLOBALS ---
+if "total_queries" not in st.session_state:
+    st.session_state.total_queries = 0
+if "total_blocked" not in st.session_state:
+    st.session_state.total_blocked = 0
+if "total_sanitized" not in st.session_state:
+    st.session_state.total_sanitized = 0
+if "attack_logs" not in st.session_state:
+    st.session_state.attack_logs = []
 if "database_seeded" not in st.session_state:
     rag_pipeline.init_db()
     seed_data.seed_database()
