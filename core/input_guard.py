@@ -154,3 +154,32 @@ def analyze_input(user_query: str) -> dict:
         "decision": decision,
         "details": details
     }
+
+def sanitize_history(history_messages: list) -> list:
+    """
+    🛡️ MEMORY GUARD: Scans historical user messages before feeding them into the LLM system prompt.
+    If a message was flagged as blocked, had a high risk score, or contained sensitive extraction attempts,
+    it is filtered or replaced with a safety block warning to prevent 'indirect prompt injection via memory'.
+    """
+    sanitized_history = []
+    for msg in history_messages:
+        role = msg.get("role")
+        content = msg.get("content", "")
+        status = msg.get("status", "safe")
+        risk = msg.get("risk_score", 0.0)
+
+        # Only process/sanitize User messages for injection attempts. Assistant responses are protected by Output Guard.
+        if role == "user":
+            # If the user prompt was blocked or had significant risk, censor its recovery to context
+            if status == "blocked" or risk >= 0.70:
+                content = "⚠️ [MEMORY SHIELD: Malicious prompt injection payload detected and sanitized to prevent memory hijacking]"
+            elif risk >= 0.35:
+                # Censor sensitive keywords/potential extractions in the retrieved history
+                content = "[MEMORY SHIELD: Suspicious credential request sanitized]"
+        
+        sanitized_history.append({
+            "role": role,
+            "content": content
+        })
+    return sanitized_history
+

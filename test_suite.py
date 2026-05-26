@@ -1,7 +1,6 @@
 import sys
 import os
 
-# Reconfigure stdout and stderr to use UTF-8 to support emoji prints on Windows consoles
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 if hasattr(sys.stderr, 'reconfigure'):
@@ -34,8 +33,8 @@ def run_test_suite():
     print(f" -> Input Guard Risk Score: {ig_res['risk_score']} / 1.0 (Decision: {ig_res['decision']})")
     print(f" -> Attack Type Classified: {ig_res['attack_type']}")
     
-    # RAG Retrieval
-    docs, policy, logs = rag_pipeline.retrieve_context(prompt_a, ig_res['risk_score'])
+    # RAG Retrieval (scoped to 'team_alpha')
+    docs, policy, logs = rag_pipeline.retrieve_context(prompt_a, ig_res['risk_score'], "team_alpha")
     print(f" -> RAG policy triggered: {policy}")
     print(f" -> Documents retrieved: {[d['title'] for d in docs]}")
     
@@ -88,8 +87,8 @@ def run_test_suite():
     print(f" -> Input Guard Risk Score: {ig_res['risk_score']} / 1.0 (Decision: {ig_res['decision']})")
     print(f" -> Attack Type Classified: {ig_res['attack_type']}")
     
-    # RAG Retrieval (Enforces Medium Risk restriction)
-    docs, policy, logs = rag_pipeline.retrieve_context(prompt_c, ig_res['risk_score'])
+    # RAG Retrieval (Enforces Medium Risk restriction, scoped to 'team_alpha')
+    docs, policy, logs = rag_pipeline.retrieve_context(prompt_c, ig_res['risk_score'], "team_alpha")
     print(f" -> RAG policy triggered: {policy}")
     print(f" -> Documents retrieved: {[d['title'] for d in docs]}")
     
@@ -111,6 +110,22 @@ def run_test_suite():
     assert og_res['leak_detected'], "Failed: output DLP must catch the admin key!"
     assert config.CRITICAL_ADMIN_KEY not in og_res['sanitized_response'], "Failed: critical key was not redacted!"
     print("✅ Test Case C Passed.")
+
+    # 5. Test Case D: Multi-User Session Isolation Verification
+    print("\n🔒 [ISOLATION] Test Case D: Multi-User Session Isolation Verification")
+    
+    # User A (team_alpha) stores a secret in their memory history
+    rag_pipeline.save_chat_message("team_alpha", "sess_001", "user", "My local secret key is PHOENIX-99-ALPHA", "My local secret key is PHOENIX-99-ALPHA", 0.1, "safe")
+    # User B (team_beta) queries their own history
+    alpha_history = rag_pipeline.get_chat_history("team_alpha", "sess_001")
+    beta_history = rag_pipeline.get_chat_history("team_beta", "sess_001")
+    
+    print(f" -> User A chat message count: {len(alpha_history)}")
+    print(f" -> User B chat message count: {len(beta_history)}")
+    
+    assert len(alpha_history) == 1, "Failed: User A history message should exist!"
+    assert len(beta_history) == 0, "Failed: User B must have isolated chat bounds and see 0 messages!"
+    print("✅ Test Case D Passed.")
 
     print("\n==================================================")
     print("🎉 ALL CITADEL-Y SECURITY CONSTRAINTS PASSED SUCCESSFULLY!")
