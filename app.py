@@ -198,11 +198,12 @@ with col_title:
     st.markdown(f"<p style='font-size: 1.1em; margin-top: -15px; color: #94a3b8;'>🛡️ Secure RAG & Multi-User Isolated Memory Gateway | Active Scope: <b>{current_user}</b> - <i>{st.session_state.current_chat_id}</i></p>", unsafe_allow_html=True)
 
 # --- NAVIGATION TABS ---
-tab_chat, tab_demo_attack, tab_dashboard, tab_vault = st.tabs([
+tab_chat, tab_demo_attack, tab_dashboard, tab_vault, tab_logs = st.tabs([
     "💬 Chat & Isolation Arena",
     "🧪 Cross-User Demo Attack",
     "📊 Prometheus Télémétrie", 
-    "📂 Secure Document Vault"
+    "📂 Secure Document Vault",
+    "🌐 Global Auditing Logs"
 ])
 
 # ==========================================
@@ -670,3 +671,53 @@ with tab_vault:
                             st.code(sani_text, language="text")
         else:
             st.warning("No documents currently indexed in vector store.")
+
+# ==========================================
+# TAB 5: GLOBAL AUDITING LOGS
+# ==========================================
+with tab_logs:
+    st.markdown("### 🌐 Global Security Audit Logs")
+    st.write("Real-time monitoring of all network and gateway traffic across all active user sessions and pentest environments:")
+    
+    col_logs1, col_logs2 = st.columns([2, 1])
+    
+    with col_logs1:
+        st.markdown("#### 📡 Real-Time Gateway Traffic Logs")
+        logs = rag_pipeline.get_global_activity_logs()
+        if logs:
+            df_logs = pd.DataFrame(logs)
+            st.dataframe(
+                df_logs,
+                column_config={
+                    "user_id": "Sender (User/Attacker)",
+                    "chat_id": "Session Name",
+                    "payload": "Fired Query / Payload",
+                    "risk_score": "Risk Level",
+                    "status": "Security Status",
+                    "timestamp": "Timestamp"
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+        else:
+            st.info("No query traffic logged yet.")
+            
+    with col_logs2:
+        st.markdown("#### 🏆 Red Team Penetration Reports")
+        reports = rag_pipeline.get_vulnerability_reports()
+        if reports:
+            df_rep = pd.DataFrame(reports)
+            st.dataframe(
+                df_rep,
+                column_config={
+                    "attacker_name": "Pentester Handle",
+                    "payload": "Payload Excerpt",
+                    "vulnerability_type": "Category",
+                    "status": "Defense Status",
+                    "timestamp": "Logged Time"
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+        else:
+            st.info("No Red Team findings reported yet.")

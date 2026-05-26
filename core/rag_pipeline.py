@@ -296,6 +296,33 @@ def get_user_chats(user_id: str) -> list:
     conn.close()
     return [r[0] for r in rows]
 
+def get_global_activity_logs() -> list:
+    """Retrieves all user queries and metrics across all workspaces for security auditing."""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT id, user_id, chat_id, content, risk_score, status, timestamp 
+        FROM chat_messages 
+        WHERE role = 'user' 
+        ORDER BY timestamp DESC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    logs = []
+    for r in rows:
+        logs.append({
+            "id": r[0],
+            "user_id": r[1],
+            "chat_id": r[2],
+            "payload": r[3],
+            "risk_score": r[4],
+            "status": r[5],
+            "timestamp": r[6]
+        })
+    return logs
+
 def delete_chat_session(user_id: str, chat_id: str):
     """Deletes all messages for a specific user chat session."""
     init_db()

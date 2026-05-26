@@ -209,6 +209,32 @@ with tab_playground:
             dlp_res = output_guard.validate_and_sanitize_output(attack_payload, llm_response)
             final_text = dlp_res["sanitized_response"]
 
+        # Log Red Team playground query and reply to global SQLite database
+        db_status = "safe"
+        if is_blocked:
+            db_status = "blocked"
+        elif dlp_res.get("leak_detected", False):
+            db_status = "limited"
+
+        rag_pipeline.save_chat_message(
+            user_id=f"red_{attacker_name}",
+            chat_id="Pentest Playground",
+            role="user",
+            content=attack_payload,
+            sanitized_content=attack_payload,
+            risk_score=risk,
+            status=db_status
+        )
+        rag_pipeline.save_chat_message(
+            user_id=f"red_{attacker_name}",
+            chat_id="Pentest Playground",
+            role="assistant",
+            content=final_text,
+            sanitized_content=final_text,
+            risk_score=0.0,
+            status="safe"
+        )
+
         total_latency = round(time.time() - start_time, 4)
 
         # Output Terminal Box
@@ -253,10 +279,10 @@ with tab_playground:
         last_stat = st.session_state.get("last_status", "Blocked")
         
         if last_pay:
-            # Save report to SQLite
+            # Save report to SQLite (storing the full payload for clear auditing)
             report_id = rag_pipeline.save_vulnerability_report(
                 attacker_name=attacker_name,
-                payload=last_pay[:100],
+                payload=last_pay,
                 vulnerability_type="Prompt Injection Bypass Attempt",
                 status=last_stat
             )
@@ -265,26 +291,51 @@ with tab_playground:
             st.warning("No payload fired yet. Fire a prompt before logging.")
 
 # ==========================================
-# TAB 3: SUBMITTED REPORT LOGS
+# TAB 3: SUBMITTED REPORT & GLOBAL LOGS
 # ==========================================
 with tab_reports:
-    st.markdown("### 📜 Submitted Attack Finding Database")
-    st.write("Browse vulnerability findings logged by the Red Team:")
+    st.markdown("### 📜 Submitted Attack Finding Database & Global Logs")
+    st.write("Browse vulnerability findings logged by the Red Team and dynamic system-wide activity:")
     
-    reports = rag_pipeline.get_vulnerability_reports()
-    if reports:
-        df_rep = pd.DataFrame(reports)
-        st.dataframe(
-            df_rep,
-            column_config={
-                "attacker_name": "Attacker",
-                "payload": "Payload Snippet",
-                "vulnerability_type": "Category",
-                "status": "Defense Status",
-                "timestamp": "Time Logged"
-            },
-            hide_index=True,
-            use_container_width=True
-        )
-    else:
-        st.info("No vulnerability reports logged yet.")
+    col_rt_logs, col_rt_reports = st.columns([1, 1])
+    
+    with col_rt_reports:
+        st.markdown("#### 🏆 Red Team Capture The Flag Reports")
+        reports = rag_pipeline.get_vulnerability_reports()
+        if reports:
+            df_rep = pd.DataFrame(reports)
+            st.dataframe(
+                df_rep,
+                column_config={
+                    "attacker_name": "Attacker Alias",
+                    "payload": "Bypass Payload",
+                    "vulnerability_type": "Category",
+                    "status": "Verdict",
+                    "timestamp": "Time Logged"
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+        else:
+            st.info("No vulnerability reports logged yet.")
+            
+    with col_rt_logs:
+        st.markdown("#### 🌐 Real-Time Global Gateway Logs")
+        logs = rag_pipeline.get_global_activity_logs()
+        if logs:
+            df_logs = pd.DataFrame(logs)
+            st.dataframe(
+                df_logs,
+                column_config={
+                    "user_id": "User/Attacker",
+                    "chat_id": "Session Name",
+                    "payload": "User Query Prompt",
+                    "risk_score": "Risk Level",
+                    "status": "Security Status",
+                    "timestamp": "Timestamp"
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+        else:
+            st.info("No traffic logged yet.")
