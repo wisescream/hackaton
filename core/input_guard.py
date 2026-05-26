@@ -2,11 +2,13 @@ import re
 import base64
 import config
 
-def detect_obfuscation(text: str) -> list:
+def detect_obfuscation(text: str) -> tuple:
     """
     Detects potential obfuscation techniques such as Base64, Binary, Leetspeak, or suspicious character patterns.
+    Returns: (indicators, decoded_contents)
     """
     indicators = []
+    decoded_contents = []
     
     # 1. Base64 detection heuristics: sequence of alphanumeric characters ending with == or length multiple of 4
     # We look for a continuous string of base64-like text that is at least 16 chars long
@@ -18,18 +20,31 @@ def detect_obfuscation(text: str) -> list:
             decoded = base64.b64decode(candidate).decode('utf-8', errors='ignore')
             if len(decoded) > 5 and any(c.isalnum() for c in decoded):
                 indicators.append(f"Base64 Obfuscation (decodes to: '{decoded[:30]}...')")
+                decoded_contents.append(decoded)
         except Exception:
             pass
 
     # 2. Binary representation (e.g., 01001000 01000101)
-    binary_pattern = re.compile(r'\b[01]{8}(?:\s+[01]{8}){2,}\b')
-    if binary_pattern.search(text):
-        indicators.append("Binary Representation Obfuscation")
+    binary_pattern = re.compile(r'\b([01]{8}(?:\s+[01]{8}){2,})\b')
+    for match in binary_pattern.finditer(text):
+        candidate = match.group(0)
+        try:
+            binary_values = candidate.split()
+            decoded = "".join(chr(int(b, 2)) for b in binary_values)
+            if len(decoded) > 3 and any(c.isalnum() for c in decoded):
+                indicators.append("Binary Representation Obfuscation")
+                decoded_contents.append(decoded)
+        except Exception:
+            pass
 
     # 3. Leetspeak or weird character spacing (e.g. "i g n o r e" or "1gn0r3")
-    spaced_words = re.compile(r'\b(?:[a-zA-Z]\s+){4,}[a-zA-Z]\b')
-    if spaced_words.search(text):
-        indicators.append("Spaced Character Obfuscation")
+    spaced_words = re.compile(r'\b(?:[a-zA-Z0-9_]\s+){3,}[a-zA-Z0-9_]\b')
+    for match in spaced_words.finditer(text):
+        candidate = match.group(0)
+        decoded = candidate.replace(" ", "")
+        if len(decoded) > 3:
+            indicators.append("Spaced Character Obfuscation")
+            decoded_contents.append(decoded)
 
     # Check for excessive leetspeak (e.g. replacing E with 3, O with 0, I with 1, A with 4)
     # We check if there are words that look heavily substituted but resemble attack keywords
@@ -39,13 +54,21 @@ def detect_obfuscation(text: str) -> list:
         (r's[y5]s[t7][e3]m', "system"),
         (r'j[a4]1[l1]br[e3][a4]k', "jailbreak")
     ]
+    has_leet = False
     for pattern, target in leetspeak_checks:
         if re.search(pattern, text, re.IGNORECASE):
             # Verify it's not a normal word (e.g. 'ignore' itself will not trigger here unless it's got numbers)
             if re.search(r'[034567]', text):
                 indicators.append(f"Leetspeak Obfuscation targeting '{target}'")
+                has_leet = True
+                
+    if has_leet:
+        # Simple leet translation map
+        leet_map = {'3': 'e', '4': 'a', '1': 'i', '0': 'o', '5': 's', '7': 't', '6': 'g', '@': 'a', '$': 's'}
+        translated = "".join(leet_map.get(c.lower(), c.lower()) for c in text)
+        decoded_contents.append(translated)
 
-    return indicators
+    return indicators, decoded_contents
 
 def analyze_input(user_query: str) -> dict:
     """
@@ -64,13 +87,17 @@ def analyze_input(user_query: str) -> dict:
         }
 
     matched_rules = []
-    obfuscation_detected = detect_obfuscation(user_query)
-    user_lower = user_query.lower()
+    obfuscation_detected, decoded_contents = detect_obfuscation(user_query)
+    
+    # We scan BOTH the raw input AND any decoded/de-obfuscated contents!
+    texts_to_scan = [user_query] + decoded_contents
     
     # 1. Regex rule-based scanning
-    for keyword in config.INJECTION_KEYWORDS:
-        if re.search(keyword, user_query, re.IGNORECASE):
-            matched_rules.append(keyword)
+    for text in texts_to_scan:
+        for keyword in config.INJECTION_KEYWORDS:
+            if re.search(keyword, text, re.IGNORECASE):
+                if keyword not in matched_rules:
+                    matched_rules.append(keyword)
 
     # 2. Heuristics for attack classification & specific triggers
     triggers = []
@@ -93,12 +120,19 @@ def analyze_input(user_query: str) -> dict:
         attack_type = "Obfuscation Attack"
 
     # Extraction triggers
-    extraction_keywords = ["admin", "secret", "key", "phoenix", "token", "password", "credential"]
+    extraction_keywords = ["admin", "secret", "key", "phoenix", "token", "password", "credential", "vault", "config"]
     retrieval_verbs = ["print", "give", "show", "reveal", "extract", "display", "dump"]
     
-    has_extract_kw = any(kw in user_lower for kw in extraction_keywords)
-    has_retrieval_verb = any(v in user_lower for v in retrieval_verbs)
-    
+    # Check if any texts_to_scan contains extraction keywords or retrieval verbs
+    has_extract_kw = False
+    has_retrieval_verb = False
+    for text in texts_to_scan:
+        text_lower = text.lower()
+        if any(kw in text_lower for kw in extraction_keywords):
+            has_extract_kw = True
+        if any(v in text_lower for v in retrieval_verbs):
+            has_retrieval_verb = True
+            
     if has_extract_kw:
         risk_score += 0.15
         if attack_type == "Normal Query":
@@ -111,12 +145,12 @@ def analyze_input(user_query: str) -> dict:
             triggers.append("Direct credential extraction verb matched")
 
     # Structural triggers (length)
-    if len(user_query) > 2000:
-        risk_score += 0.10
-        triggers.append("Large input length (possible payload container)")
-    elif len(user_query) > 5000:
+    if len(user_query) > 5000:
         risk_score += 0.20
         triggers.append("Critical input length (high probability of hidden payload)")
+    elif len(user_query) > 2000:
+        risk_score += 0.10
+        triggers.append("Large input length (possible payload container)")
 
     # Clamp the risk score
     risk_score = min(max(risk_score, 0.0), 1.0)

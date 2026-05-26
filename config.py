@@ -36,7 +36,7 @@ DLP_PATTERNS = {
 # --- PROMPT INJECTION RULES ---
 # Known attack patterns for rule-based matching in Input Guard
 INJECTION_KEYWORDS = [
-    r"ignore\s+(?:previous|above|all)\s+instructions",
+    r"ignore\s+(?:[^.!?]*?\s+)?(?:instructions|rules|directives)",
     r"reveal\s+(?:your\s+)?system\s+prompt",
     r"you\s+are\s+now\s+a",
     r"override\s+rules",
