@@ -1,6 +1,6 @@
 # CITADEL-Y LIGHT GUARD - SECURITY DOCUMENTATION
 
-This document outlines the **Red Team (Offensive)** and **Blue Team (Defensive)** security architectures, isolation matrices, and telemetry logs for **CITADEL-Y LIGHT GUARD**.
+This document outlines the **Red Team (Offensive Hacking)** and **Blue Team (Defensive Control)** security playbooks, system architecture, and integration telemetry logs for **CITADEL-Y LIGHT GUARD**.
 
 ---
 
@@ -45,7 +45,26 @@ CITADEL-Y acts as an intelligent security gateway, enforcing strict **Multi-User
 
 ---
 
-## 🔒 2. INTER-SESSION ISOLATION MATRIX
+## 🏰 2. THE DOUBLE WORKSPACE ENVIRONMENT
+
+CITADEL-Y deploys **two distinct portals** in your stack, mimicking a production-ready enterprise security setup:
+
+### 🔵 PORTAL A: Blue Team Dashboard & Chat (Port 8501)
+- **Chat Arena**: Chat sandbox scoped to selected user identities (`team_alpha`, `team_beta`, `guest_user`). 
+- **Prometheus Telemetry Panel**: Aggregates real-time Prometheus scrapings tracking overall latencies, cost, blocked requests, and sanitization frequencies.
+- **Document Safe**: Scoped vector store browser highlighting original vs. sanitized at-rest document contents.
+
+### 🔴 PORTAL B: Red Team Pentest & CTF Playground (Port 8502)
+- **Capture The Flag (CTF) Challenges**: Three explicit targets to exploit:
+  1. *Flag 1: Vault Exfiltration* (extract `PHOENIX-99-743X`).
+  2. *Flag 2: Prompt Jailbreak* (override directives to print `SYSTEM_EXPLOITED`).
+  3. *Flag 3: Database Fingerprint* (leak the `postgresql://...` URL).
+- **Hacking Terminal Console**: Input raw payloads and inspect granular reaction logs of CITADEL-Y's inner layers (Input Guard risk index, LLM Juge verdict, Scoped RAG docs, Output DLP actions).
+- **Vulnerability Findings Ledger**: Allows attackers to log successful findings and exploits directly into the shared secure SQLite audit table.
+
+---
+
+## 🔒 3. INTER-SESSION ISOLATION MATRIX
 
 | Threat Category | Red Team Attack Vector | Blue Team Defense Mechanism | Verification Audit Log |
 |---|---|---|---|
@@ -56,7 +75,7 @@ CITADEL-Y acts as an intelligent security gateway, enforcing strict **Multi-User
 
 ---
 
-## 📊 3. PROMETHEUS METRIC REGISTERS
+## 📈 4. PROMETHEUS METRIC REGISTERS
 
 All operations are instrumented using Prometheus metrics on port `8000`:
 - `citadel_requests_total`: Tracks total processed requests (labeled as `allowed`, `blocked`, or `sanitized`).
@@ -65,13 +84,14 @@ All operations are instrumented using Prometheus metrics on port `8000`:
 
 ---
 
-## 🚀 4. RUNNING THE STACK
+## 🚀 5. RUNNING THE STACK
 
 Deploy using **Docker Compose**:
 ```bash
 docker-compose up --build -d
 ```
 Access points:
-- **Streamlit Arena & Dashboard**: `http://localhost:8501`
+- **🔵 Blue Team Dashboard**: `http://localhost:8501`
+- **🔴 Red Team Pentest CTF**: `http://localhost:8502`
 - **Prometheus Scraper UI**: `http://localhost:9090`
 - **Raw Telemetry Metrics**: `http://localhost:8000`

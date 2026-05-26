@@ -111,8 +111,57 @@ def init_db():
             timestamp TEXT NOT NULL
         )
     """)
+    
+    # 3. Vulnerability Reports Table (for Red Team Capture The Flag submissions)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS vulnerability_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            attacker_name TEXT NOT NULL,
+            payload TEXT NOT NULL,
+            vulnerability_type TEXT NOT NULL,
+            status TEXT NOT NULL, -- Blocked, Sanitized, Bypassed
+            timestamp TEXT NOT NULL
+        )
+    """)
     conn.commit()
     conn.close()
+
+def save_vulnerability_report(attacker_name: str, payload: str, vulnerability_type: str, status: str) -> int:
+    """Saves a vulnerability report submitted by the Red Team."""
+    init_db()
+    timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO vulnerability_reports (attacker_name, payload, vulnerability_type, status, timestamp) VALUES (?, ?, ?, ?, ?)",
+        (attacker_name, payload, vulnerability_type, status, timestamp)
+    )
+    report_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return report_id
+
+def get_vulnerability_reports() -> list:
+    """Retrieves all vulnerability reports submitted by attackers."""
+    init_db()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, attacker_name, payload, vulnerability_type, status, timestamp FROM vulnerability_reports ORDER BY timestamp DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    reports = []
+    for r in rows:
+        reports.append({
+            "id": r[0],
+            "attacker_name": r[1],
+            "payload": r[2],
+            "vulnerability_type": r[3],
+            "status": r[4],
+            "timestamp": r[5]
+        })
+    return reports
+
 
 def sanitize_content(text: str) -> str:
     """
@@ -156,11 +205,13 @@ def ingest_document(title: str, content: str, classification: str = "public", me
     return doc_id
 
 def delete_all_documents():
-    """Wipes all documents."""
+    """Wipes all documents, persistent chat logs, and vulnerability reports for clean testing/seeding."""
     init_db()
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("DELETE FROM documents")
+    cursor.execute("DELETE FROM chat_messages")
+    cursor.execute("DELETE FROM vulnerability_reports")
     conn.commit()
     conn.close()
 
